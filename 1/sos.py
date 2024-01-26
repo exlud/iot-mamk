@@ -2,15 +2,15 @@ from machine import Pin
 import time
 
 def dit():
-    led.toggle()
+    led.on()
     time.sleep_ms(500)
-    led.toggle()
+    led.off()
     time.sleep_ms(500)
 
 def dah():
-    led.toggle()
+    led.on()
     time.sleep_ms(1500)
-    led.toggle()
+    led.off()
     time.sleep_ms(500)
 
 def letter_s():
@@ -28,10 +28,8 @@ def letter_o():
 
 
 #Create a pin instance for the LED
-led = Pin("LED", Pin.OUT)
-#Bring it to off state
-if led.value() == 1:
-    led.toggle()
+#Default state is off
+led = Pin("LED", Pin.OUT, value=0)
 
 #Enter an infinite loop
 while True:
