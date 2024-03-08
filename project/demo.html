@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="mqtt.min.js"></script>        
+<script>
+const url = 'ws://broker.emqx.io:8083/mqtt'
+// Create an MQTT client instance
+const options = {
+  // Clean session
+  clean: true,
+  connectTimeout: 4000,
+  // Authentication
+  clientId: 'emqx_test',
+  username: 'emqx_test',
+  password: 'emqx_test',
+}
+const client  = mqtt.connect(url, options)
+client.on('connect', function () {
+  console.log('Connected')
+  // Subscribe to a topic
+  client.subscribe('testtopic/lu/#', function (err) {
+    if (!err) {
+      // Publish a message to a topic
+      client.publish('test', 'Hello mqtt')
+    }
+  })
+})
+
+// Receive messages
+client.on('message', function (topic, message) {
+  // message is Buffer
+  console.log(topic.toString(), message.toString())
+  //TODO: visualize data
+})
+ 
+</script>
+
+
+    </head>
+</html>
