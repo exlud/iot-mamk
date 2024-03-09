@@ -2,10 +2,11 @@ from machine import Pin
 import time
 import dht
 from umqtt.simple import MQTTClient
+import urequests
 
 # use button to fake an input event of PIR sensor
 # return:
-#   1: no humuan body approximate
+#   1: no human body approximate
 #   0: human body approximate
 pir = Pin(11, Pin.IN, Pin.PULL_UP)
 def scan_pir():
@@ -31,11 +32,62 @@ def scan_temperature():
     humidity = sensor.humidity()
     return temperature, humidity
 
+# temperature control
+margin = 1 # margin window +/-, centered at the target temperature
+heating = Pin(4, Pin.OUT, Pin.PULL_UP)
+cooling = Pin(5, Pin.OUT, Pin.PULL_UP)
+def heating_up():
+    heating.on()
+    cooling.off()
+def cooling_down():
+    heating.off()
+    cooling.on()
+def suspend():
+    heating.off()
+    cooling.off()
+# we want to achieve the same temperature as in Marseille
+# fr/marseille
+# br/rio-de-janeiro
+# is/reykjavik
+def target():
+    r = urequests.get("https://meteocast.net/temperature/is/reykjavik/")
+    anchor = r.content.find(b'tempnow')
+    div = r.content[anchor:anchor + 180]
+    r.close()
+    anchor2 = div.find(b'bibi') + 6
+    inner = div[anchor2:anchor2+5]
+    non_printable_index = 0
+    for byte in inner:
+        if (byte < 32 or byte > 127):
+            break
+        non_printable_index += 1
+    
+    content = inner[:non_printable_index]
+    temperature = int(content.decode('utf-8'))
+    
+    return temperature
+
+target = target()
+
+# 1 for heating
+# 0 for cooling
+def init_direction():
+    temperature, humidity = scan_temperature()
+    if(temperature < target):
+        direction = 1
+    else:
+        direction = 0
+
+direction = init_direction()
+suspend()
+
 # data publish
 BROKER = "broker.emqx.io"
 mqtt_client=MQTTClient("", BROKER)
 def init_data_channel():
     mqtt_client.connect(clean_session=True)
+
+init_data_channel()
 
 def publish_data(temperature, humidity):
     topic_temperature = "testtopic/lu/temperature"
@@ -45,7 +97,6 @@ def publish_data(temperature, humidity):
 
 # main process, scheduled in time slot
 slot = 0
-init_data_channel()
 while True:
     # light control start
     if(scan_pir() == 0):
@@ -62,10 +113,21 @@ while True:
         temperature, humidity = scan_temperature()
         publish_data(temperature, humidity)
     
-    # TODO: temperature control
-    #if(slot == 9):
-    #    http get the target temperature
-    #    lazy comparator, to control cooling or heating
+    if(slot == 9):
+        if(direction == 1): # heating
+            if(temperature > (target + margin)):
+                cooling()
+                direction = 0
+            else:
+                if(temperature > target):
+                    suspend()
+        else: # cooling
+            if(temperature < (target - margin)):
+                heating()
+                direction = 1
+            else:
+                if(temperature < target):
+                    suspend()
     
     # schedule 30 time slot
     slot = slot + 1
