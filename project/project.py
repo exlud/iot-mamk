@@ -50,7 +50,7 @@ def suspend():
 # br/rio-de-janeiro
 # is/reykjavik
 def target():
-    r = urequests.get("https://meteocast.net/temperature/is/reykjavik/")
+    r = urequests.get("https://meteocast.net/temperature/br/rio-de-janeiro/")
     anchor = r.content.find(b'tempnow')
     div = r.content[anchor:anchor + 180]
     r.close()
@@ -114,20 +114,27 @@ while True:
         publish_data(temperature, humidity)
     
     if(slot == 9):
+        print(temperature)
+        print(target)
+        print(direction)
         if(direction == 1): # heating
             if(temperature > (target + margin)):
-                cooling()
+                cooling_down()
                 direction = 0
             else:
                 if(temperature > target):
                     suspend()
+                else:
+                    heating_up()
         else: # cooling
             if(temperature < (target - margin)):
-                heating()
+                heating_up()
                 direction = 1
             else:
                 if(temperature < target):
                     suspend()
+                else:
+                    cooling_down()
     
     # schedule 30 time slot
     slot = slot + 1
